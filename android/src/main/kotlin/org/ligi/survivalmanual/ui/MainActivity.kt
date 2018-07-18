@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.support.v4.content.ContextCompat.getColor
 import android.support.v4.view.MenuItemCompat
 import android.support.v7.app.ActionBarDrawerToggle
 import android.support.v7.app.AlertDialog
@@ -31,6 +32,11 @@ import org.ligi.snackengage.snacks.DefaultRateSnack
 import org.ligi.snackengage.snacks.RateSnack
 import org.ligi.survivalmanual.EventTracker
 import org.ligi.survivalmanual.R
+import org.ligi.survivalmanual.R.*
+import org.ligi.survivalmanual.R.color.colorAccentLight
+import org.ligi.survivalmanual.R.id.*
+import org.ligi.survivalmanual.R.string.drawer_close
+import org.ligi.survivalmanual.R.string.drawer_open
 import org.ligi.survivalmanual.adapter.EditingRecyclerAdapter
 import org.ligi.survivalmanual.adapter.MarkdownRecyclerAdapter
 import org.ligi.survivalmanual.adapter.SearchResultRecyclerAdapter
@@ -40,20 +46,38 @@ import org.ligi.survivalmanual.functions.isImage
 import org.ligi.survivalmanual.functions.splitText
 import org.ligi.survivalmanual.model.*
 import org.ligi.tracedroid.logging.Log
+import kotlin.properties.Delegates.observable
 
 class MainActivity : BaseActivity() {
 
-    private val drawerToggle by lazy { ActionBarDrawerToggle(this, drawer_layout, org.ligi.survivalmanual.R.string.drawer_open, org.ligi.survivalmanual.R.string.drawer_close) }
+    private val drawerToggle by lazy { ActionBarDrawerToggle(this, drawer_layout, drawer_open, drawer_close) }
 
-    val survivalContent by lazy { SurvivalContent(assets) }
+    private val survivalContent by lazy { SurvivalContent(assets) }
 
-    lateinit var currentUrl: String
-    lateinit var currentTopicName: String
+    private lateinit var currentUrl: String
+    private lateinit var currentTopicName: String
+    private lateinit var textInput: MutableList<String>
 
-    lateinit var textInput: MutableList<String>
+    private var lastFontSize = State.getFontSize()
+    private var lastNightMode = State.nightModeString()
+    private var lastAllowSelect = State.allowSelect()
 
-    fun imageWidth(): Int {
-        val totalWidthPadding = (resources.getDimension(org.ligi.survivalmanual.R.dimen.content_padding) * 2).toInt()
+    private val linearLayoutManager by lazy { LinearLayoutManager(this) }
+
+    private var isInEditMode by observable(false, onChange = { _, _, newMode ->
+        if (newMode) {
+            fab.setImageResource(drawable.ic_image_remove_red_eye)
+            contentRecycler.adapter = EditingRecyclerAdapter(textInput)
+        } else {
+            fab.setImageResource(drawable.ic_editor_mode_edit)
+            contentRecycler.adapter = MarkdownRecyclerAdapter(textInput, imageWidth(), onURLClick)
+        }
+
+        contentRecycler.scrollToPosition(State.lastScrollPos)
+    })
+
+    private fun imageWidth(): Int {
+        val totalWidthPadding = (resources.getDimension(dimen.content_padding) * 2).toInt()
         return Math.min(contentRecycler.width - totalWidthPadding, contentRecycler.height)
     }
 
@@ -64,29 +88,26 @@ class MainActivity : BaseActivity() {
         } else if (!processProductLinks(it, this)) {
 
             if (isImage(it)) {
-                val intent = Intent(this, ImageViewActivity::class.java)
-                intent.putExtra("URL", it)
-                startActivity(intent)
+                startActivity(Intent(this, ImageViewActivity::class.java).apply {
+                    putExtra("URL", it)
+                })
             } else {
                 processURL(it)
             }
         }
     }
 
-
-    private val linearLayoutManager by lazy { LinearLayoutManager(this) }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(org.ligi.survivalmanual.R.layout.activity_main)
+        setContentView(layout.activity_main)
 
         drawer_layout.addDrawerListener(drawerToggle)
-        setSupportActionBar(findViewById(org.ligi.survivalmanual.R.id.toolbar) as Toolbar)
+        setSupportActionBar(findViewById(id.toolbar) as Toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         navigationView.setNavigationItemSelectedListener { item ->
             drawer_layout.closeDrawers()
-            processURL(NavigationEntryMap[item.itemId].entry.url)
+            processURL(navigationEntryMap[item.itemId].entry.url)
             true
         }
 
@@ -101,7 +122,8 @@ class MainActivity : BaseActivity() {
 
         contentRecycler.addOnScrollListener(RememberPositionOnScroll())
 
-        SnackEngage.from(this).withSnack(DefaultRateSnack()).build().engageWhenAppropriate()
+        val rateSnack = DefaultRateSnack().apply { setActionColor(getColor(baseContext, colorAccentLight)) }
+        SnackEngage.from(fab).withSnack(rateSnack).build().engageWhenAppropriate()
 
         contentRecycler.post {
             if (intent.data == null || !processURL(intent.data.path.replace("/", ""))) {
@@ -110,27 +132,33 @@ class MainActivity : BaseActivity() {
                 }
             }
 
-            switchMode(false)
+            isInEditMode = false
         }
 
         if (State.isInitialOpening) {
             drawer_layout.openDrawer(Gravity.LEFT)
             State.isInitialOpening = false
         }
-    }
 
-    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        menu.findItem(org.ligi.survivalmanual.R.id.action_search).isVisible = State.allowSearch()
-        return super.onPrepareOptionsMenu(menu)
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(org.ligi.survivalmanual.R.menu.main, menu)
-        if (Build.VERSION.SDK_INT >= 19) {
-            menuInflater.inflate(org.ligi.survivalmanual.R.menu.print, menu)
+        fab.setOnClickListener {
+            isInEditMode = !isInEditMode
         }
 
-        val searchView = MenuItemCompat.getActionView(menu.findItem(org.ligi.survivalmanual.R.id.action_search)) as SearchView
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu) = super.onPrepareOptionsMenu(menu.apply {
+        findItem(id.action_search)?.let {
+            it.isVisible = State.allowSearch()
+        }
+    })
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main, menu)
+        if (Build.VERSION.SDK_INT >= 19) {
+            menuInflater.inflate(R.menu.print, menu)
+        }
+
+        val searchView = MenuItemCompat.getActionView(menu.findItem(id.action_search)) as SearchView
 
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextChange(searchTerm: String): Boolean {
@@ -146,14 +174,14 @@ class MainActivity : BaseActivity() {
                         contentRecycler.adapter = SearchResultRecyclerAdapter(searchTerm, survivalContent, {
                             processURL(it)
                             closeKeyboard()
-                        }).apply { toast() }
+                        }).apply { showToastWhenListIsEmpty() }
 
                     }
 
                     adapter.notifyDataSetChanged()
                 } else if (adapter is SearchResultRecyclerAdapter) {
                     adapter.changeTerm(searchTerm)
-                    adapter.toast()
+                    adapter.showToastWhenListIsEmpty()
                     if (survivalContent.getMarkdown(currentUrl)!!.contains(searchTerm)) {
                         contentRecycler.adapter = MarkdownRecyclerAdapter(textInput, imageWidth(), onURLClick)
                         State.searchTerm = searchTerm
@@ -168,7 +196,7 @@ class MainActivity : BaseActivity() {
         return super.onCreateOptionsMenu(menu)
     }
 
-    fun SearchResultRecyclerAdapter.toast() = {
+    fun SearchResultRecyclerAdapter.showToastWhenListIsEmpty() {
         if (list.isEmpty()) {
             Toast.makeText(this@MainActivity, State.searchTerm + " not found", Toast.LENGTH_LONG).show()
         }
@@ -178,71 +206,67 @@ class MainActivity : BaseActivity() {
         val first = Math.max(linearLayoutManager.findFirstVisibleItemPosition(), 0)
         val search = CaseInsensitiveSearch(searchTerm)
 
-        val next = (first..list.lastIndex).firstOrNull {
+        return (first..list.lastIndex).firstOrNull {
             search.isInContent(list[it])
         }
-        return next
     }
 
-    override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
+    private val optionsMap = mapOf(
+            menu_settings to { startActivityFromClass(PreferenceActivity::class.java) },
+            menu_share to {
+                EventTracker.trackGeneric("share")
+                val intent = Intent(Intent.ACTION_SEND)
+                intent.putExtra(Intent.EXTRA_TEXT, RateSnack().getUri(this).toString())
+                intent.type = "text/plain"
+                startActivity(Intent.createChooser(intent, null))
+            },
 
-        org.ligi.survivalmanual.R.id.menu_settings -> {
-            startActivityFromClass(PreferenceActivity::class.java)
-            true
-        }
+            menu_rate to {
+                EventTracker.trackGeneric("rate")
+                startActivityFromURL(RateSnack().getUri(this))
+            },
 
-        org.ligi.survivalmanual.R.id.menu_share -> {
-            EventTracker.trackGeneric("share")
-            val intent = Intent(Intent.ACTION_SEND)
-            intent.putExtra(Intent.EXTRA_TEXT, RateSnack().getUri(this).toString())
-            intent.type = "text/plain"
-            startActivity(Intent.createChooser(intent, null))
-            true
-        }
+            menu_print to {
+                EventTracker.trackGeneric("print", currentUrl)
+                val newWebView = WebView(this@MainActivity)
+                newWebView.setWebViewClient(object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
+                    override fun onPageFinished(view: WebView, url: String) = createWebPrintJob(view)
+                })
 
-        org.ligi.survivalmanual.R.id.menu_rate -> {
-            EventTracker.trackGeneric("rate")
-            startActivityFromURL(RateSnack().getUri(this))
-            true
-        }
+                val htmlDocument = convertMarkdownToHtml(survivalContent.getMarkdown(currentUrl)!!)
 
-        org.ligi.survivalmanual.R.id.menu_print -> {
-            EventTracker.trackGeneric("print", currentUrl)
-            val newWebView = WebView(this@MainActivity)
-            newWebView.setWebViewClient(object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
-                override fun onPageFinished(view: WebView, url: String) = createWebPrintJob(view)
-            })
+                newWebView.loadDataWithBaseURL("file:///android_asset/md/", htmlDocument, "text/HTML", "UTF-8", null)
 
-            val htmlDocument = convertMarkdownToHtml(survivalContent.getMarkdown(currentUrl)!!)
+            },
 
-            newWebView.loadDataWithBaseURL("file:///android_asset/md/", htmlDocument, "text/HTML", "UTF-8", null)
+            menu_bookmark to {
+                val view = inflate(layout.bookmark)
+                view.topicText.text = currentTopicName
+                AlertDialog.Builder(this)
+                        .setView(view)
+                        .setTitle(string.add_bookmark)
+                        .setPositiveButton(string.bookmark, { _: DialogInterface, _: Int ->
+                            Bookmarks.persist(Bookmark(currentUrl, view.commentEdit.text.toString(), ""))
+                        })
+                        .setNegativeButton(string.cancel, { _: DialogInterface, _: Int -> })
+                        .show()
+                true
+            }
+    )
 
-            true
-        }
-
-        org.ligi.survivalmanual.R.id.menu_bookmark -> {
-            val view = inflate(R.layout.bookmark)
-            view.topicText.text = currentTopicName
-            AlertDialog.Builder(this)
-                    .setView(view)
-                    .setTitle("Add Bookmark")
-                    .setPositiveButton("Bookmark", { _: DialogInterface, _: Int ->
-                        Bookmarks.persist(Bookmark(currentUrl, view.commentEdit.text.toString(), ""))
-                    })
-                    .setNegativeButton("Cancel", { _: DialogInterface, _: Int -> })
-                    .show()
-            true
-        }
-
-        else -> drawerToggle.onOptionsItemSelected(item)
+    override fun onOptionsItemSelected(item: MenuItem) = if (optionsMap.containsKey(item.itemId)) {
+        optionsMap[item.itemId]!!.invoke()
+        true
+    } else {
+        drawerToggle.onOptionsItemSelected(item)
     }
 
 
     @TargetApi(19)
     private fun createWebPrintJob(webView: WebView) {
         val printManager = getSystemService(Context.PRINT_SERVICE) as PrintManager
-        val jobName = getString(org.ligi.survivalmanual.R.string.app_name) + " Document"
+        val jobName = getString(string.app_name) + " Document"
         val printAdapter = WebViewCompat.createPrintDocumentAdapter(webView, jobName)
         printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
     }
@@ -289,9 +313,6 @@ class MainActivity : BaseActivity() {
         drawerToggle.syncState()
     }
 
-    var lastFontSize = State.getFontSize()
-    var lastNightMode = State.nightModeString()
-    var lastAllowSelect = State.allowSelect()
 
     override fun onResume() {
         super.onResume()
@@ -313,20 +334,4 @@ class MainActivity : BaseActivity() {
         supportInvalidateOptionsMenu()
     }
 
-    fun switchMode(editing: Boolean) {
-        fab.setOnClickListener {
-            switchMode(!editing)
-        }
-
-        if (editing) {
-            fab.setImageResource(org.ligi.survivalmanual.R.drawable.ic_image_remove_red_eye)
-            contentRecycler.adapter = EditingRecyclerAdapter(textInput)
-        } else {
-            fab.setImageResource(org.ligi.survivalmanual.R.drawable.ic_editor_mode_edit)
-            contentRecycler.adapter = MarkdownRecyclerAdapter(textInput, imageWidth(), onURLClick)
-        }
-
-        contentRecycler.scrollToPosition(State.lastScrollPos)
-
-    }
 }

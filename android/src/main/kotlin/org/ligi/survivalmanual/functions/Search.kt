@@ -4,7 +4,7 @@ import android.support.annotation.VisibleForTesting
 import org.ligi.survivalmanual.model.SearchResult
 import org.ligi.survivalmanual.model.SurvivalContent
 
-private val EXCERPT_SIZE = 100
+private const val EXCERPT_SIZE = 100
 
 @VisibleForTesting
 fun getExcerpt(text: String, term: String): String {
@@ -20,7 +20,7 @@ interface Search {
 }
 
 class CaseInsensitiveSearch(override val term: String) : Search {
-    val escapedTerm = Regex.escape(term)
+    private val escapedTerm = Regex.escape(term)
     val regex = Regex("(?i)$escapedTerm")
 
     override fun isInContent(content: String) = content.contains(regex)
