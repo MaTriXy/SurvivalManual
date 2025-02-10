@@ -1,16 +1,16 @@
 package org.ligi.survivalmanual.adapter
 
-import android.support.v7.widget.RecyclerView
 import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
-import org.ligi.kaxt.doAfterEdit
+import androidx.core.widget.doAfterTextChanged
+import androidx.recyclerview.widget.RecyclerView
 import org.ligi.survivalmanual.R
 import org.ligi.survivalmanual.viewholder.TextContentViewHolder
 
-class EditingRecyclerAdapter(val list: MutableList<String>) : RecyclerView.Adapter<TextContentViewHolder>() {
+class EditingRecyclerAdapter(private val list: MutableList<String>) : RecyclerView.Adapter<TextContentViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TextContentViewHolder {
         val textView = LayoutInflater.from(parent.context).inflate(R.layout.edit_text, parent, false) as TextView
@@ -22,7 +22,7 @@ class EditingRecyclerAdapter(val list: MutableList<String>) : RecyclerView.Adapt
         val editText = holder.view as EditText
         editText.setText(list[holder.adapterPosition])
 
-        editText.doAfterEdit {
+        editText.doAfterTextChanged {
             list[holder.adapterPosition] = editText.text.toString()
         }
     }

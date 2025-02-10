@@ -1,9 +1,14 @@
 package org.ligi.survivalmanual.model
 
-import android.preference.PreferenceManager
-import android.support.v7.app.AppCompatDelegate
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.preference.PreferenceManager
 import com.chibatching.kotpref.KotprefModel
-import org.ligi.survivalmanual.R.string.*
+import org.ligi.survivalmanual.R.string.preference_key_edittoggle
+import org.ligi.survivalmanual.R.string.preference_key_fontsize
+import org.ligi.survivalmanual.R.string.preference_key_nightmode
+import org.ligi.survivalmanual.R.string.preference_key_select_text
+
+private const val DEFAULT_FONT_SIZE_STRING = "2"
 
 object State : KotprefModel() {
 
@@ -16,25 +21,25 @@ object State : KotprefModel() {
 
     private val sharedPreferences by lazy { PreferenceManager.getDefaultSharedPreferences(context) }
 
-    fun markVisited() = sharedPreferences.getBoolean(preference_mark_visited.string(), false)
     fun allowEdit() = sharedPreferences.getBoolean(preference_key_edittoggle.string(), false)
-    fun allowSearch() = sharedPreferences.getBoolean(preference_key_search.string(), false)
     fun allowSelect() = sharedPreferences.getBoolean(preference_key_select_text.string(), false)
     fun getFontSize() = 8f + 4f * Integer.parseInt(getFontSizeString())
 
-    private fun getFontSizeString() = sharedPreferences.getString(preference_key_fontsize.string(), "2")
+    private fun getFontSizeString() =
+            sharedPreferences.getString(preference_key_fontsize.string(), DEFAULT_FONT_SIZE_STRING)
+                    ?: DEFAULT_FONT_SIZE_STRING
 
-    fun nightModeString(): String? = sharedPreferences.getString(preference_key_nightmode.string(), "auto")
+    fun nightModeString(): String? = sharedPreferences.getString(preference_key_nightmode.string(), "system")
 
     fun getNightMode() = when (nightModeString()) {
         "day" -> AppCompatDelegate.MODE_NIGHT_NO
         "night" -> AppCompatDelegate.MODE_NIGHT_YES
         "darknight" -> AppCompatDelegate.MODE_NIGHT_YES
-        "auto" -> AppCompatDelegate.MODE_NIGHT_AUTO
-        else -> AppCompatDelegate.MODE_NIGHT_AUTO
+        "system" -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
     }
 
-    fun Int.string() = context.getString(this)!!
+    fun Int.string() = context.getString(this)
 
     fun applyDayNightMode() {
         AppCompatDelegate.setDefaultNightMode(getNightMode())

@@ -1,22 +1,25 @@
 package org.ligi.survivalmanual
 
 import android.os.SystemClock
-import android.support.test.espresso.Espresso.onView
-import android.support.test.espresso.contrib.DrawerActions
-import android.support.test.espresso.contrib.NavigationViewActions.navigateTo
-import android.support.test.espresso.matcher.ViewMatchers.withId
-import org.assertj.core.api.Assertions.assertThat
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.contrib.DrawerActions
+import androidx.test.espresso.contrib.NavigationViewActions.navigateTo
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.ext.junit.rules.ActivityScenarioRule
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.ligi.survivalmanual.model.navigationEntryMap
 import org.ligi.survivalmanual.model.titleResByURLMap
 import org.ligi.survivalmanual.ui.MainActivity
-import org.ligi.trulesk.TruleskActivityRule
 
+@RunWith(AndroidJUnit4::class)
 class TheSurvivalActivityDirectStart {
 
     @get:Rule
-    val activityTestRule = TruleskActivityRule(MainActivity::class.java)
+    val activityTestRule = ActivityScenarioRule(MainActivity::class.java)
 
     @Test
     fun thatActivityShouldLaunch() {
@@ -27,17 +30,14 @@ class TheSurvivalActivityDirectStart {
     @Test
     fun testWeCanOpenAllTopics() {
         navigationEntryMap.filter { it.entry.isListed }.forEach {
-            onView(withId(R.id.drawer_layout)).perform(DrawerActions.open())
+            onView(withId(R.id.main_drawer_layout)).perform(DrawerActions.open())
             SystemClock.sleep(500)
-            onView(withId(R.id.navigationView)).perform(navigateTo(it.id))
+            onView(withId(R.id.main_navigationView)).perform(navigateTo(it.id))
             SystemClock.sleep(500)
-            val activity = activityTestRule.activity
-            val subtitle = activity.supportActionBar!!.subtitle
-            assertThat(subtitle).isEqualTo(activity.getString(titleResByURLMap[it.entry.url]!!))
-
-            activityTestRule.screenShot("topic_" + subtitle!!.toString().replace(" ", "_").replace("/", "_"))
+            activityTestRule.scenario.onActivity { activity ->
+                val subtitle = activity.supportActionBar!!.subtitle
+                assertEquals(activity.getString(titleResByURLMap[it.entry.url]!!), subtitle)
+            }
         }
-
     }
-
 }

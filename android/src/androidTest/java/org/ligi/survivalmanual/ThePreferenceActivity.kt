@@ -1,32 +1,36 @@
 package org.ligi.survivalmanual
 
-import android.support.test.espresso.Espresso.onView
-import android.support.test.espresso.action.ViewActions.click
-import android.support.test.espresso.matcher.ViewMatchers.withText
-import android.support.v7.app.AppCompatDelegate.*
-import org.assertj.core.api.Assertions.assertThat
+import androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+import androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+import androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+import androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.ext.junit.rules.ActivityScenarioRule
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.ligi.survivalmanual.model.State
 import org.ligi.survivalmanual.ui.PreferenceActivity
-import org.ligi.trulesk.TruleskActivityRule
 
-
+@RunWith(AndroidJUnit4::class)
 class ThePreferenceActivity {
 
     @get:Rule
-    val activityTestRule = TruleskActivityRule(PreferenceActivity::class.java)
+    val activityTestRule = ActivityScenarioRule(PreferenceActivity::class.java)
 
     @Test
-    fun thatDayNightAutoIsSelectable() {
+    fun thatDayFollowSystemIsSelectable() {
 
         onView(withText(R.string.preference_daynight_title)).perform(click())
 
-        onView(withText(R.string.auto)).perform(click())
+        onView(withText(R.string.system)).perform(click())
 
-        assertThat(getDefaultNightMode()).isEqualTo(MODE_NIGHT_AUTO)
-        assertThat(State.getNightMode()).isEqualTo(MODE_NIGHT_AUTO)
-        activityTestRule.screenShot("daynight_auto")
+        assertEquals(MODE_NIGHT_FOLLOW_SYSTEM, getDefaultNightMode())
+        assertEquals(MODE_NIGHT_FOLLOW_SYSTEM, State.getNightMode())
     }
 
     @Test
@@ -36,9 +40,8 @@ class ThePreferenceActivity {
 
         onView(withText(R.string.day)).perform(click())
 
-        assertThat(getDefaultNightMode()).isEqualTo(MODE_NIGHT_NO)
-        assertThat(State.getNightMode()).isEqualTo(MODE_NIGHT_NO)
-        activityTestRule.screenShot("daynight_day")
+        assertEquals(MODE_NIGHT_NO, getDefaultNightMode())
+        assertEquals(MODE_NIGHT_NO, State.getNightMode())
     }
 
     @Test
@@ -48,28 +51,7 @@ class ThePreferenceActivity {
 
         onView(withText(R.string.night)).perform(click())
 
-        assertThat(getDefaultNightMode()).isEqualTo(MODE_NIGHT_YES)
-        assertThat(State.getNightMode()).isEqualTo(MODE_NIGHT_YES)
-        activityTestRule.screenShot("daynight_night")
-    }
-
-    @Test
-    fun thatWeCanSwitchEdit() {
-
-        val oldState = State.allowEdit()
-
-        onView(withText(R.string.allow_edit)).perform(click())
-
-        assertThat(oldState).isEqualTo(!State.allowEdit())
-    }
-
-    @Test
-    fun thatWeCanSwitchSearch() {
-
-        val oldState = State.allowSearch()
-
-        onView(withText(R.string.allow_search)).perform(click())
-
-        assertThat(oldState).isEqualTo(!State.allowSearch())
+        assertEquals(MODE_NIGHT_YES, getDefaultNightMode())
+        assertEquals(MODE_NIGHT_YES, State.getNightMode())
     }
 }

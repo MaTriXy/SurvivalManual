@@ -1,11 +1,6 @@
 package org.ligi.survivalmanual.adapter
 
 import android.content.Context
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.os.Build
-import android.support.graphics.drawable.VectorDrawableCompat
-import android.support.v7.widget.RecyclerView
 import android.text.Editable
 import android.text.Html
 import android.text.Spannable
@@ -18,7 +13,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import org.ligi.compat.HtmlCompat
+import androidx.core.text.HtmlCompat
+import androidx.recyclerview.widget.RecyclerView
 import org.ligi.survivalmanual.R
 import org.ligi.survivalmanual.functions.convertMarkdownToHtml
 import org.ligi.survivalmanual.functions.getSurvivalDrawable
@@ -29,14 +25,15 @@ import org.ligi.survivalmanual.ui.CustomQuoteSpan
 import org.ligi.survivalmanual.viewholder.TextContentViewHolder
 import org.xml.sax.XMLReader
 
-class MarkdownRecyclerAdapter(val list: List<String>, val imageWidth: Int, val onURLClick: (url: String) -> Unit) : RecyclerView.Adapter<TextContentViewHolder>() {
+class MarkdownRecyclerAdapter(val list: List<String>,
+                              val imageWidth: Int,
+                              val onURLClick: (url: String) -> Unit
+) : RecyclerView.Adapter<TextContentViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TextContentViewHolder {
         val textView = LayoutInflater.from(parent.context).inflate(R.layout.text, parent, false) as TextView
         textView.movementMethod = LinkMovementMethod.getInstance()
-        if (Build.VERSION.SDK_INT >= 11) {
-            textView.setTextIsSelectable(State.allowSelect())
-        }
+        textView.setTextIsSelectable(State.allowSelect())
         return TextContentViewHolder(textView)
     }
 
@@ -84,20 +81,13 @@ class MarkdownRecyclerAdapter(val list: List<String>, val imageWidth: Int, val o
 
         text.textSize = State.getFontSize()
         class CustomImageGetter : Html.ImageGetter {
-            override fun getDrawable(source: String): Drawable {
-
-                val bitmapDrawable = getSurvivalDrawable(ctx, source)!!
-
-                val ratio = bitmapDrawable.intrinsicHeight.toFloat() / bitmapDrawable.intrinsicWidth.toFloat()
-
-                bitmapDrawable.setBounds(0, 0, imageWidth, (imageWidth * ratio).toInt())
-                return bitmapDrawable
+            override fun getDrawable(source: String) = getSurvivalDrawable(ctx, source)?.apply {
+                val ratio = intrinsicHeight.toFloat() / intrinsicWidth.toFloat()
+                setBounds(0, 0, imageWidth, (imageWidth * ratio).toInt())
             }
-
-
         }
 
-        val sequence = HtmlCompat.fromHtml(html, CustomImageGetter(), ListTagHandler())
+        val sequence = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_LEGACY, CustomImageGetter(), ListTagHandler())
         val spannable = SpannableStringBuilder(sequence)
         val urls = spannable.getSpans(0, sequence.length, URLSpan::class.java)
 
